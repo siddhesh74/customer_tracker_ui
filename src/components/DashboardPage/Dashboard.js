@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [downloadDate, setDownloadDate] = useState(null);
   const [downloadStartDate, setDownloadStartDate] = useState(null);
   const [downloadEndDate, setDownloadEndDate] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "",
@@ -37,7 +38,6 @@ export default function Dashboard() {
       const res = await getAllCustomerByPagination(token, pageNum, limit);
       setCustomers(Array.isArray(res.data.customers) ? res.data.customers : []);
       setTotalPages(res.data.totalPages || 1);
-      // setPage(res.data.page || 1);
     } catch {
       setCustomers([]);
       setError("Failed to fetch customers");
@@ -95,51 +95,93 @@ export default function Dashboard() {
   };
 
   const handleDownloadCSV = async () => {
-    const token = localStorage.getItem("token");
-    const response = await fetch("http://localhost:3001/api/customers/download", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      alert("Failed to download CSV");
-      return;
-    }
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "customers.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadCSVByDateRange = async () => {
-    if (!downloadStartDate && !downloadEndDate) return;
-    const token = localStorage.getItem("token");
-    const params = [];
-    if (downloadStartDate) params.push(`startDate=${downloadStartDate.toISOString().split("T")[0]}`);
-    if (downloadEndDate) params.push(`endDate=${downloadEndDate.toISOString().split("T")[0]}`);
-    const query = params.length ? `?${params.join("&")}` : "";
+    setDownloading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/customers/download${query}`, {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3001/api/customers/download", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      if (!response.ok) {
+        alert("Failed to download CSV");
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `customers_${params.join("_")}.csv`;
+      a.download = "customers.csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      alert("Failed to download CSV");
+    } finally {
+      setDownloading(false);
     }
   };
 
+  // const handleDownloadCSVByDateRange = async () => {
+  //   if (!downloadStartDate && !downloadEndDate) return;
+  //   const token = localStorage.getItem("token");
+  //   const params = [];
+  //   if (downloadStartDate) params.push(`startDate=${downloadStartDate.toISOString().split("T")[0]}`);
+  //   if (downloadEndDate) params.push(`endDate=${downloadEndDate.toISOString().split("T")[0]}`);
+  //   const query = params.length ? `?${params.join("&")}` : "";
+  //   try {
+  //     const response = await fetch(`http://localhost:3001/api/customers/download${query}`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     const url = window.URL.createObjectURL(new Blob([response.data]));
+  //     const a = document.createElement("a");
+  //     a.href = url;
+  //     a.download = `customers_${params.join("_")}.csv`;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     window.URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     alert("Failed to download CSV");
+  //   }
+  // };
+
   return (
     <div className="dashboard-bg" style={{ minHeight: "100vh", position: "relative" }}>
+      {/* Loader Overlay */}
+      {downloading && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(255,255,255,0.7)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            className="loader"
+            style={{
+              border: "6px solid #f3f3f3",
+              borderTop: "6px solid #3f51b5",
+              borderRadius: "50%",
+              width: "60px",
+              height: "60px",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
       {/* Hamburger Button */}
       <button className="hamburger-btn" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
         <span />
@@ -190,13 +232,13 @@ export default function Dashboard() {
               height: "44px",
               minWidth: "150px",
             }}
-            onClick={() => setShowDownloadModal(true)}
+            onClick={() => handleDownloadCSV()}
           >
             Download List
           </button>
         </div>
 
-        {showDownloadModal && (
+        {/* {showDownloadModal && (
           <div className="modal-overlay" onClick={() => setShowDownloadModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <button className="modal-close" onClick={() => setShowDownloadModal(false)} title="Close">
@@ -238,7 +280,7 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-        )}
+        )} */}
 
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
